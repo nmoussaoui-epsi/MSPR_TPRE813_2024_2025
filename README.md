@@ -4,33 +4,38 @@
 
 Ce projet a pour but de réaliser une preuve de concept (POC) pour une start-up fictive spécialisée dans le conseil en campagnes électorales. L’objectif est de prédire les tendances électorales en analysant des indicateurs socio-économiques (emploi, sécurité, population, entreprises, etc.) à l’aide de techniques de data science.
 
-## Étapes du projet
+## Installation et configuration
 
-1. **Choix d’un secteur géographique restreint** (ville, département…)
-2. **Collecte et nettoyage de données** issues de [data.gouv.fr](https://www.data.gouv.fr/)
-3. **Création d’un schéma de traitement de données** (ETL)
-4. **Conception d’un modèle prédictif supervisé** (machine learning)
-5. **Visualisation des résultats et prédictions** à 1, 2 et 3 ans
-6. **Rédaction d’un dossier de synthèse** incluant les choix techniques, les résultats, et la méthodologie
+Pour travailler sur ce projet, suivez les étapes ci-dessous :
 
-## Outils et technologies
+### 1. Cloner le dépôt
 
-- Python (Pandas, Scikit-learn, Matplotlib…)
-- Power BI (ou autre outil de visualisation)
-- Outils ETL
-- SQL / NoSQL pour le stockage des données
+Clonez le projet sur votre machine locale à l'aide de la commande suivante :
 
-## Livrables
+```bash
+git clone <URL_DU_DEPOT>
+cd MSPR_TPRE813_2024_2025
+```
 
-- Jeu de données nettoyé et normalisé
-- Code source commenté
-- Modèle prédictif + visualisations
-- Dossier de synthèse (.pdf)
+### 2. Installer les dépendances
 
-## Compétences mobilisées
+Assurez-vous d'avoir Python installé sur votre machine (version 3.8 ou supérieure). Ensuite, installez les dépendances nécessaires en exécutant :
 
-- Data Engineering
-- Machine Learning supervisé
-- Business Intelligence
-- Visualisation de données
-- Modélisation et évaluation de la précision d’un modèle
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configurer le fichier `.env`
+
+Créez un fichier `.env` à la racine du projet et ajoutez-y les informations suivantes :
+
+```
+INSEE_CLIENT_ID=<VOTRE_CLIENT_ID>
+INSEE_CLIENT_SECRET=<VOTRE_CLIENT_SECRET>
+```
+
+Pour obtenir ces identifiants, créez un compte sur le site de l'INSEE ([https://api.insee.fr/](https://api.insee.fr/)) et générez vos clés d'API.
+
+### 4. Lancer le projet
+
+Une fois les étapes précédentes terminées, vous pouvez exécuter les scripts Python ou les notebooks associés au projet pour commencer à travailler sur les données.
