@@ -4,3 +4,4 @@ openpyxl
 xmltodict
 python-dotenv
 dotenv
+xlrd

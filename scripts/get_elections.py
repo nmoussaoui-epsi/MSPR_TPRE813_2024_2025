@@ -3,13 +3,15 @@ import requests
 import pandas as pd
 
 # URLs des fichiers .xlsx des élections
-# election_urls = {
-#     "elections_2002": "https://www.data.gouv.fr/fr/datasets/r/c5e0f812-48a6-437b-b5c2-1dbcc0c69c5d",
-#     "elections_2007": "https://www.data.gouv.fr/fr/datasets/r/835a83c4-f24c-4f71-947b-5e0939db7d1e",
-#     "elections_2012": "https://www.data.gouv.fr/fr/datasets/r/073e9a44-52a2-4032-84a8-4ce02eb2f7ad",
-#     "elections_2017": "https://www.data.gouv.fr/fr/datasets/r/f010ab8f-3255-4f75-a9d4-27c21d3e44a3",
-#     "elections_2022": "https://www.data.gouv.fr/fr/datasets/r/42a88f46-5893-4a47-b3a9-364b1d80e9cc"
-# }
+election_urls = {
+    "elections_2002": "https://www.data.gouv.fr/fr/datasets/r/6a99f5eb-436a-4ebf-9924-479aca1fc178",
+    "elections_2007": "https://www.data.gouv.fr/fr/datasets/r/23061ba7-39a6-464b-bd31-c6b1137b69ba",
+    "elections_2012": "https://www.data.gouv.fr/fr/datasets/r/adac47aa-6436-47aa-b1c0-f35882187970",
+    "elections_2017_T1": "https://www.data.gouv.fr/fr/datasets/r/449f02ce-e971-46a9-aa72-ca66858f16cf",
+    "elections_2017_T2": "https://www.data.gouv.fr/fr/datasets/r/0e50ba6a-8175-4455-9e4a-09a7783dc547",
+    "elections_2022_T1": "https://www.data.gouv.fr/fr/datasets/r/98eb9dab-f328-4dee-ac08-ac17211357a8",
+    "elections_2022_T2": "https://www.data.gouv.fr/fr/datasets/r/92fcc5b6-df2a-4a33-ab28-555803511206",
+}
 
 # Dossier de sortie
 output_dir = "../data/raw/elections"
