@@ -13,7 +13,7 @@ Pour travailler sur ce projet, suivez les étapes ci-dessous :
 Clonez le projet sur votre machine locale à l'aide de la commande suivante :
 
 ```bash
-git clone <URL_DU_DEPOT>
+git clone https://github.com/nmoussaoui-epsi/MSPR_TPRE813_2024_2025.git
 cd MSPR_TPRE813_2024_2025
 ```
 
@@ -34,7 +34,7 @@ INSEE_CLIENT_ID=<VOTRE_CLIENT_ID>
 INSEE_CLIENT_SECRET=<VOTRE_CLIENT_SECRET>
 ```
 
-Pour obtenir ces identifiants, créez un compte sur le site de l'INSEE ([https://api.insee.fr/](https://api.insee.fr/)) et générez vos clés d'API.
+Pour obtenir ces identifiants, créez un compte sur le site de l'INSEE ([https://api.insee.fr/](https://api.insee.fr/catalogue/)) et générez vos clés d'API.
 
 ### 4. Lancer le projet
 
