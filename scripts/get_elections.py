@@ -29,13 +29,5 @@ for filename, url in election_urls.items():
         with open(xlsx_path, "wb") as f:
             f.write(response.content)
         print(f"✅ Téléchargé : {xlsx_path}")
-
-        # Essayer d’ouvrir et convertir en CSV
-        try:
-            df = pd.read_excel(xlsx_path)
-            df.to_csv(csv_path, index=False)
-            print(f"📁 Converti : {csv_path}")
-        except Exception as e:
-            print(f"⚠️ Erreur de conversion {filename}: {e}")
     else:
         print(f"❌ Échec du téléchargement : {filename}")
