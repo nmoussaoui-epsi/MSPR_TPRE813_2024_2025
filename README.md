@@ -36,6 +36,14 @@ INSEE_CLIENT_SECRET=<VOTRE_CLIENT_SECRET>
 
 Pour obtenir ces identifiants, créez un compte sur le site de l'INSEE ([https://api.insee.fr/](https://api.insee.fr/catalogue/)) et générez vos clés d'API.
 
-### 4. Lancer le projet
+### 4. Télécharger les données brutes
+
+Une fois les dépendances installées, vous devez télécharger les données brutes nécessaires au projet:
+
+```bash
+python scripts/init_data.py
+```
+
+### 5. Lancer le projet
 
 Une fois les étapes précédentes terminées, vous pouvez exécuter les scripts Python ou les notebooks associés au projet pour commencer à travailler sur les données.
