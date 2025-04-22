@@ -1,8 +1,10 @@
 .env
 __pycache__
 
-data/raw/
 data/raw/*
-data/raw/*/
-!data/raw/.gitkeep
-!data/raw/*/.gitkeep
+data/clean/*
+data/final/*
+
+!data/raw/
+!data/clean/ 
+!data/final/
