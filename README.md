@@ -22,7 +22,7 @@ cd MSPR_TPRE813_2024_2025
 Assurez-vous d'avoir Python installé sur votre machine (version 3.8 ou supérieure). Ensuite, installez les dépendances nécessaires en exécutant :
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 3. Configurer le fichier `.env`
