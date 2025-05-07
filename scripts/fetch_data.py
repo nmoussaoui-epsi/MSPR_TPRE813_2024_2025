@@ -1,163 +1,74 @@
-from data_utils import get_raw_path, ensure_dir_exists
-from token_manager import get_insee_token
+import json
 import requests
-import csv
-import os
-import xmltodict
+import zipfile
+import io
+from time import sleep
+from pathlib import Path
 
-# Constantes pour les séries INSEE
-SERIES = {
-    "chomage": {
-        "01": "001515866",  # Ain
-        "02": "001515867",  # Aisne
-        "06": "001515871",  # Alpes-Maritimes
-        "13": "001515877",  # Bouches-du-Rhône
-        "17": "001515881",  # Charente-Maritime
-        "21": "001515883",  # Côte-d'Or
-        "29": "001515888",  # Finistère
-        "31": "001515890",  # Haute-Garonne
-        "33": "001515892",  # Gironde
-        "34": "001515893",  # Hérault
-        "38": "001515896",  # Isère
-        "44": "001515899",  # Loire-Atlantique
-        "54": "001515904",  # Meurthe-et-Moselle
-        "59": "001515907",  # Nord
-        "60": "001515908",  # Oise
-        "62": "001515910",  # Pas-de-Calais
-        "69": "001515914",  # Rhône
-        "75": "001515918",  # Paris
-        "83": "001515926",  # Var
-        "974": "001515948"  # La Réunion
-    },
-    "criminalite": {
-        "01": "001688517",
-        "02": "001688518",
-        "06": "001688522",
-        "13": "001688528",
-        "17": "001688532",
-        "21": "001688534",
-        "29": "001688539",
-        "31": "001688541",
-        "33": "001688543",
-        "34": "001688544",
-        "38": "001688547",
-        "44": "001688550",
-        "54": "001688555",
-        "59": "001688558",
-        "60": "001688559",
-        "62": "001688561",
-        "69": "001688565",
-        "75": "001688569",
-        "83": "001688577",
-        "974": "001688599"
-    }
-}
+BASE_DIR = Path(__file__).resolve().parent.parent
+RAW_DATA_DIR = BASE_DIR / "data" / "raw"
+JSON_PATH = BASE_DIR / "data_sources.json"
 
-def fetch_chomage():
-    """Récupère les données de chômage depuis l'API INSEE"""
-    token = get_insee_token()
-    output_dir = get_raw_path("chomage")
-    ensure_dir_exists(output_dir)
+def create_folder(path: Path):
+    path.mkdir(parents=True, exist_ok=True)
 
-    for code_dept, idbank in SERIES["chomage"].items():
-        url = f"https://api.insee.fr/series/BDM/V1/data/SERIES_BDM/{idbank}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/xml"
-        }
-        
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            xml_data = xmltodict.parse(response.text)
-            series = xml_data['message:StructureSpecificData']['message:DataSet']['Series']
-            observations = series['Obs']
-            
-            output_path = os.path.join(output_dir, f"chomage_{code_dept}.csv")
-            with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["année", "taux_chomage"])
-                for obs in observations:
-                    periode = obs['@TIME_PERIOD']
-                    valeur = obs['@OBS_VALUE']
-                    writer.writerow([periode, valeur])
-            
-            print(f"✅ {code_dept} → {output_path}")
-        else:
-            print(f"❌ Erreur {code_dept}: Status code {response.status_code}")
+def load_config(json_path: Path) -> dict:
+    with open(json_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def fetch_criminalite():
-    """Récupère les données de criminalité depuis l'API INSEE"""
-    token = get_insee_token()
-    output_dir = get_raw_path("criminalite")
-    ensure_dir_exists(output_dir)
+def build_download_url(base_url: str, series_id: str) -> str:
+    return f"{base_url}{series_id}"
 
-    for code_dept, idbank in SERIES["criminalite"].items():
-        url = f"https://api.insee.fr/series/BDM/V1/data/SERIES_BDM/{idbank}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/xml"
-        }
-        
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            xml_data = xmltodict.parse(response.text)
-            series = xml_data['message:StructureSpecificData']['message:DataSet']['Series']
-            observations = series['Obs']
-            
-            output_path = os.path.join(output_dir, f"criminalite_{code_dept}.csv")
-            with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["année", "nombre_auteurs_poursuivables"])
-                for obs in observations:
-                    periode = obs['@TIME_PERIOD']
-                    valeur = obs['@OBS_VALUE']
-                    writer.writerow([periode, valeur])
-            
-            print(f"✅ {code_dept} → {output_path}")
-        else:
-            print(f"❌ Erreur {code_dept}: Status code {response.status_code}")
+def extract_csv_from_zip(content: bytes, output_dir: Path, base_filename: str):
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            for zip_info in zf.infolist():
+                if not zip_info.filename.lower().endswith(".csv"):
+                    continue
+                with zf.open(zip_info) as file:
+                    stem = Path(zip_info.filename).stem
+                    output_file = output_dir / f"{base_filename}_{stem}.csv"
+                    with open(output_file, "wb") as out_f:
+                        out_f.write(file.read())
+    except zipfile.BadZipFile:
+        raise Exception("ZIP invalide ou corrompu")
 
-def fetch_jobseekers_by_department():
-    """Récupère les données des demandeurs d'emploi par département depuis l'API Labouréf"""
-    years = ["2002", "2007", "2012", "2017", "2022"]
-    departments = ["01", "02", "06", "13", "17", "21", "29", "31", "33", "34", 
-                  "38", "44", "54", "59", "60", "62", "69", "75", "83", "974"]
-    
-    # Construire les filtres
-    year_filter = " OR ".join([f'quarter:"{year}"' for year in years])
-    dept_filter = " OR ".join([f'dep_code:"{dept}"' for dept in departments])
-    
-    url = (
-        "https://data.labouref.fr/api/explore/v2.1/catalog/datasets/"
-        "labouref-france-departement-quarter-jobseeker/records"
-        f"?where={year_filter}"
-        f"&refine={dept_filter}"
-        "&select=dep_code,dep_name,quarter,nb_jobseeker"
-        "&limit=10000"
-        "&format=csv"
-    )
-    
-    output_path = get_raw_path("demandeurs_emploi_departements_election.csv")
-    ensure_dir_exists(os.path.dirname(output_path))
-    
+def download_file(url: str, output_dir: Path, dataset_name: str, series_id: str):
     response = requests.get(url)
-    
-    if response.status_code == 200:
-        with open(output_path, "wb") as f:
-            f.write(response.content)
-        print(f"✅ Données sauvegardées → {output_path}")
-    else:
-        print(f"❌ Erreur: Status code {response.status_code}")
+    response.raise_for_status()
 
-def run_all_fetch():
-    """Exécute tous les processus de récupération"""
-    print("Début de la récupération des données...")
-    fetch_chomage()
-    fetch_criminalite()
-    fetch_jobseekers_by_department()
-    print("✅ Toutes les récupérations sont terminées")
+    content = response.content
+    base_filename = f"{dataset_name}_{series_id}"
+
+    if content[:4] == b"PK\x03\x04":
+        extract_csv_from_zip(content, output_dir, base_filename)
+    else:
+        output_file = output_dir / f"{base_filename}.csv"
+        with open(output_file, "wb") as f:
+            f.write(content)
+
+def fetch_all_data():
+    config = load_config(JSON_PATH)
+    base_url = config.get("base_url")
+
+    print("📥 Téléchargement en cours...")
+
+    for dataset in config["datasets"]:
+        name = dataset["name"]
+        series_list = dataset["series"]
+        folder_path = RAW_DATA_DIR / name
+
+        create_folder(folder_path)
+
+        for series_id in series_list:
+            url = build_download_url(base_url, series_id)
+            try:
+                download_file(url, folder_path, name, series_id)
+            except Exception as e:
+                print(f"❌ Erreur pour {series_id} ({name}) : {e}")
+            sleep(0.5)
+
+    print("✅ Tous les jeux de données ont été téléchargés.")
 
 if __name__ == "__main__":
-    run_all_fetch()
+    fetch_all_data()
