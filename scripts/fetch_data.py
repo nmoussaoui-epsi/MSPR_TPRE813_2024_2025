@@ -119,11 +119,44 @@ def fetch_criminalite():
         else:
             print(f"❌ Erreur {code_dept}: Status code {response.status_code}")
 
+def fetch_jobseekers_by_department():
+    """Récupère les données des demandeurs d'emploi par département depuis l'API Labouréf"""
+    years = ["2002", "2007", "2012", "2017", "2022"]
+    departments = ["01", "02", "06", "13", "17", "21", "29", "31", "33", "34", 
+                  "38", "44", "54", "59", "60", "62", "69", "75", "83", "974"]
+    
+    # Construire les filtres
+    year_filter = " OR ".join([f'quarter:"{year}"' for year in years])
+    dept_filter = " OR ".join([f'dep_code:"{dept}"' for dept in departments])
+    
+    url = (
+        "https://data.labouref.fr/api/explore/v2.1/catalog/datasets/"
+        "labouref-france-departement-quarter-jobseeker/records"
+        f"?where={year_filter}"
+        f"&refine={dept_filter}"
+        "&select=dep_code,dep_name,quarter,nb_jobseeker"
+        "&limit=10000"
+        "&format=csv"
+    )
+    
+    output_path = get_raw_path("demandeurs_emploi_departements_election.csv")
+    ensure_dir_exists(os.path.dirname(output_path))
+    
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+        print(f"✅ Données sauvegardées → {output_path}")
+    else:
+        print(f"❌ Erreur: Status code {response.status_code}")
+
 def run_all_fetch():
     """Exécute tous les processus de récupération"""
     print("Début de la récupération des données...")
     fetch_chomage()
     fetch_criminalite()
+    fetch_jobseekers_by_department()
     print("✅ Toutes les récupérations sont terminées")
 
 if __name__ == "__main__":
