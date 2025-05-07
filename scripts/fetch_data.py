@@ -25,6 +25,8 @@ def extract_csv_from_zip(content: bytes, output_dir: Path, base_filename: str):
             for zip_info in zf.infolist():
                 if not zip_info.filename.lower().endswith(".csv"):
                     continue
+                if "caractéristiques" in zip_info.filename.lower():
+                    continue
                 with zf.open(zip_info) as file:
                     stem = Path(zip_info.filename).stem
                     output_file = output_dir / f"{base_filename}_{stem}.csv"
@@ -43,9 +45,10 @@ def download_file(url: str, output_dir: Path, dataset_name: str, series_id: str)
     if content[:4] == b"PK\x03\x04":
         extract_csv_from_zip(content, output_dir, base_filename)
     else:
-        output_file = output_dir / f"{base_filename}.csv"
-        with open(output_file, "wb") as f:
-            f.write(content)
+        if "caractéristiques" not in base_filename.lower():
+            output_file = output_dir / f"{base_filename}.csv"
+            with open(output_file, "wb") as f:
+                f.write(content)
 
 def fetch_all_data():
     config = load_config(JSON_PATH)
