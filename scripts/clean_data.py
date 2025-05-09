@@ -343,13 +343,195 @@ def process_minimum_vieillesse():
     final_df.to_csv(CLEAN_DIR / "minimum_vieillesse_clean.csv", index=False)
     print(f"✅ minimum_vieillesse_clean.csv généré avec {len(final_df)} lignes et {len(final_df.columns)} colonnes")
 
+def process_logements_sociaux():
+    print("📦 Traitement des données de logements sociaux...")
+
+    RAW_DIR = BASE_DIR / "data" / "raw" / "nb_logements_sociaux_pour_10000_habitants"
+    TARGET_YEARS = [2002, 2007, 2012, 2017, 2022]
+    slug = "nb_logements_sociaux_pour_10000_habitants"
+    dfs = []
+
+    for file in RAW_DIR.glob("*.csv"):
+        if not is_value_file(file.name):
+            continue
+
+        # Lecture du libellé pour extraire le département
+        with open(file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        libelle_line = next((l for l in lines if "Libellé" in l), None)
+        if not libelle_line:
+            print(f"⚠️ Pas de libellé dans {file.name}")
+            continue
+
+        raw_label = libelle_line.split(";")[1].strip('" \n')
+        _, dep_code = extract_criterion_and_departement(raw_label)
+        if not dep_code:
+            if "ville de paris" in raw_label.lower():
+                dep_code = "75"
+            else:
+                print(f"⚠️ Département non reconnu pour {file.name} → {raw_label}")
+                continue
+
+        # Chargement et nettoyage
+        df = pd.read_csv(file, sep=";", skiprows=4, encoding="utf-8")
+        df = df.rename(columns={df.columns[0]: "annee", df.columns[1]: "valeur"})
+        df = df[df["annee"].astype(str).str.isnumeric()]
+        df["annee"] = df["annee"].astype(int)
+
+        # Remplissage des années cibles
+        df_filled = predict_missing_years(df, "annee", "valeur", TARGET_YEARS)
+
+        # Ajout du code département et renommage
+        df_filled["code_departement"] = dep_code
+        df_filled = df_filled[["code_departement", "annee", "valeur"]]
+        df_filled = df_filled.rename(columns={"valeur": slug})
+
+        dfs.append(df_filled)
+
+    if not dfs:
+        print("❌ Aucun fichier exploitable pour logements sociaux.")
+        return
+
+    # Fusion et sauvegarde
+    final = pd.concat(dfs, ignore_index=True)
+    final = final.sort_values(by=["code_departement", "annee"])
+    final.to_csv(CLEAN_DIR / "logements_sociaux_clean.csv", index=False)
+    print(f"✅ logements_sociaux_clean.csv généré avec {len(final)} lignes (départements × années).")
+
+import pandas as pd
+from pathlib import Path
+from data_utils import extract_criterion_and_departement, is_value_file, predict_missing_years
+
+def process_rsa():
+    print("📦 Traitement des données RSA...")
+    RAW_DIR = BASE_DIR / "data" / "raw" / "rsa"
+    TARGET_YEARS = [2002, 2007, 2012, 2017, 2022]
+    slug = "rsa_nb_allocataires"
+    dfs = []
+
+    for file in RAW_DIR.glob("*.csv"):
+        if not is_value_file(file.name):
+            continue
+
+        # 1) On détermine le département
+        with open(file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        libelle_line = next((l for l in lines if "Libellé" in l), None)
+        raw_label = libelle_line.split(";")[1].strip('" \n')
+        _, dep_code = extract_criterion_and_departement(raw_label)
+        if not dep_code:
+            print(f"⚠️ Département non reconnu pour {file.name}")
+            continue
+
+        # 2) Lecture brute et nettoyage
+        df = pd.read_csv(file, sep=";", skiprows=4, encoding="utf-8")
+        df = df.rename(columns={df.columns[0]: "annee", df.columns[1]: "valeur"})
+        df = df[df["annee"].astype(str).str.isnumeric()]
+        df["annee"] = df["annee"].astype(int)
+        df["valeur"] = pd.to_numeric(df["valeur"], errors="coerce")
+
+        # 3) On note l’année minimale existante
+        min_known = df["annee"].min()
+
+        # 4) On remplit par prédiction (pour les années manquantes)
+        filled = predict_missing_years(df, "annee", "valeur", TARGET_YEARS)
+
+        # 5) On remplace par NA tout y < min_known
+        filled.loc[filled["annee"] < min_known, "valeur"] = pd.NA
+
+        # 6) On ajoute le code département et on renomme la colonne
+        filled["code_departement"] = dep_code
+        filled = filled[["code_departement", "annee", "valeur"]]
+        filled = filled.rename(columns={"valeur": slug})
+
+        dfs.append(filled)
+
+    # 7) Fusion et sauvegarde
+    if not dfs:
+        print("❌ Aucun fichier RSA exploitable.")
+        return
+
+    final = pd.concat(dfs, ignore_index=True)
+    final = final.sort_values(["code_departement","annee"])
+    final.to_csv(CLEAN_DIR / "rsa_clean.csv", index=False)
+    print(f"✅ rsa_clean.csv généré avec {len(final)} lignes.")
+
+def process_chomage():
+    print("📦 Traitement des données de taux de chômage...")
+    RAW_DIR = BASE_DIR / "data" / "raw" / "taux_de_chomage"
+    TARGET_YEARS = [2002, 2007, 2012, 2017, 2022]
+    dfs = []
+
+    for file in RAW_DIR.glob("*.csv"):
+        if not is_value_file(file.name):
+            continue
+
+        # 1) extraire le libellé et le code département
+        with open(file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        libelle_line = next((l for l in lines if "Libellé" in l), None)
+        if not libelle_line:
+            print(f"⚠️ Pas de libellé dans {file.name}")
+            continue
+        raw_label = libelle_line.split(";")[1].strip('" \n')
+        critere, dep_code = extract_criterion_and_departement(raw_label)
+        if not dep_code:
+            if "ville de paris" in raw_label.lower():
+                dep_code = "75"
+            else:
+                print(f"⚠️ Département non reconnu pour {file.name} → {raw_label}")
+                continue
+
+        # 2) chargement, conversion trimestre → année, moyennage
+        df = pd.read_csv(file, sep=";", skiprows=4, encoding="utf-8")
+        # on renomme la 1ʳᵉ colonne "periode", la 2ᵉ "valeur"
+        df = df.rename(columns={df.columns[0]: "periode", df.columns[1]: "valeur"})
+        # filtrer les lignes où "periode" est du type "YYYY-Tn"
+        df = df[df["periode"].astype(str).str.match(r"\d{4}-T\d")]
+        # extraire l'année
+        df["annee"] = df["periode"].str.slice(0, 4).astype(int)
+        # convertir la valeur en numérique
+        df["valeur"] = pd.to_numeric(df["valeur"], errors="coerce")
+        # calculer la moyenne annuelle
+        annual = df.groupby("annee", as_index=False)["valeur"].mean()
+
+        # 3) remplissage vers les années cibles
+        filled = predict_missing_years(annual, "annee", "valeur", TARGET_YEARS)
+
+        # 4) ajout du code département et slug
+        slug = critere \
+            .replace(" ", "_") \
+            .replace("'", "") \
+            .replace("-", "_") \
+            .replace("(", "") \
+            .replace(")", "") \
+            .replace(",", "") \
+            .lower()
+        filled["code_departement"] = dep_code
+        filled = filled.rename(columns={"valeur": slug})
+        filled = filled[["code_departement", "annee", slug]]
+
+        dfs.append(filled)
+
+    if not dfs:
+        print("❌ Aucun fichier exploitable pour le chômage.")
+        return
+
+    # 5) fusion et écriture
+    final = pd.concat(dfs, ignore_index=True)
+    final = final.sort_values(["code_departement", "annee"])
+    final.to_csv(CLEAN_DIR / "chomage_clean.csv", index=False)
+    print(f"✅ chomage_clean.csv généré avec {len(final)} lignes et {len(final.columns)} colonnes")
 
 def main():
-    process_population()
-    process_criminalite()
-    process_cmu()
-    process_diplome()
-    process_minimum_vieillesse()
+    # process_population()
+    # process_criminalite()
+    # process_cmu()
+    # process_diplome()
+    # process_minimum_vieillesse()
+    # process_logements_sociaux()
+    # process_rsa()
+    process_chomage()
 
 
 if __name__ == "__main__":
