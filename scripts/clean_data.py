@@ -517,11 +517,83 @@ def process_chomage():
         print("❌ Aucun fichier exploitable pour le chômage.")
         return
 
-    # 5) fusion et écriture
     final = pd.concat(dfs, ignore_index=True)
     final = final.sort_values(["code_departement", "annee"])
     final.to_csv(CLEAN_DIR / "chomage_clean.csv", index=False)
     print(f"✅ chomage_clean.csv généré avec {len(final)} lignes et {len(final.columns)} colonnes")
+
+
+def process_pauvrete():
+    print("📦 Traitement des données de pauvreté...")
+    RAW_DIR = BASE_DIR / "data" / "raw" / "taux_de_pauvrete"
+    TARGET_YEARS = [2002, 2007, 2012, 2017, 2022]
+    criteres_data: dict[str, list[pd.DataFrame]] = {}
+
+    for file in RAW_DIR.glob("*.csv"):
+        if not is_value_file(file.name):
+            continue
+
+        # Extraction du libellé et du code département
+        with open(file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        libelle_line = next((l for l in lines if "Libellé" in l), None)
+        if not libelle_line:
+            print(f"⚠️ Pas de libellé dans {file.name}")
+            continue
+
+        raw_label = libelle_line.split(";")[1].strip('" \n')
+        critere, dep_code = extract_criterion_and_departement(raw_label)
+        if not dep_code:
+            print(f"⚠️ Département non reconnu pour {file.name} → {raw_label}")
+            continue
+
+        # Construction du slug
+        slug = (
+            critere
+            .replace(" ", "_")
+            .replace("'", "")
+            .replace("-", "_")
+            .replace(":", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace(",", "")
+            .lower()
+        )
+
+        # Lecture et nettoyage
+        df = pd.read_csv(file, sep=";", skiprows=4, encoding="utf-8")
+        df = df.rename(columns={df.columns[0]: "annee", df.columns[1]: "valeur"})
+        df = df[df["annee"].astype(str).str.isnumeric()]
+        df["annee"] = df["annee"].astype(int)
+        df["valeur"] = pd.to_numeric(df["valeur"], errors="coerce")
+
+        # Remplissage des années cibles
+        df_filled = predict_missing_years(df, "annee", "valeur", TARGET_YEARS)
+
+        # Ajout du code département et renommage
+        df_filled["code_departement"] = dep_code
+        df_filled = df_filled[["code_departement", "annee", "valeur"]]
+        df_filled = df_filled.rename(columns={"valeur": slug})
+
+        criteres_data.setdefault(slug, []).append(df_filled)
+
+    if not criteres_data:
+        print("❌ Aucun critère de pauvreté exploitable.")
+        return
+
+    # Fusion de toutes les colonnes de pauvreté
+    final = None
+    for slug, dfs in criteres_data.items():
+        merged = pd.concat(dfs, ignore_index=True)
+        if final is None:
+            final = merged
+        else:
+            final = pd.merge(final, merged, on=["code_departement", "annee"], how="outer")
+
+    final = final.sort_values(by=["code_departement", "annee"])
+    final.to_csv(CLEAN_DIR / "pauvrete_clean.csv", index=False)
+    print(f"✅ pauvrete_clean.csv généré avec {len(final)} lignes et {len(final.columns)} colonnes")
+
 
 def main():
     # process_population()
@@ -531,7 +603,8 @@ def main():
     # process_minimum_vieillesse()
     # process_logements_sociaux()
     # process_rsa()
-    process_chomage()
+    # process_chomage()
+    process_pauvrete()
 
 
 if __name__ == "__main__":
