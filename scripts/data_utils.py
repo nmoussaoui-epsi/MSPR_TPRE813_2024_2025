@@ -106,3 +106,5 @@ def predict_missing_years(
 
     return pd.DataFrame({year_col: target_years, value_col: out})
 
+def clean_nom(nom: str) -> str:
+    return str(nom).replace('"', '').strip().upper()
