@@ -763,15 +763,15 @@ def process_elections():
 
 
 def main():
-    # process_population()
-    # process_criminalite()
-    # process_cmu()
-    # process_diplome()
-    # process_minimum_vieillesse()
-    # process_logements_sociaux()
-    # process_rsa()
-    # process_chomage()
-    # process_pauvrete()
+    process_population()
+    process_criminalite()
+    process_cmu()
+    process_diplome()
+    process_minimum_vieillesse()
+    process_logements_sociaux()
+    process_rsa()
+    process_chomage()
+    process_pauvrete()
     process_elections()
 
 
