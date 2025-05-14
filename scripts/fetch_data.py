@@ -62,3 +62,5 @@ def fetch_all_data():
             sleep(0.5)
 
     print("✅ Tous les jeux de données ont été téléchargés.")
+
+fetch_all_data()

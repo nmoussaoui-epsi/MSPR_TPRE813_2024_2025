@@ -1,38 +1,52 @@
 import pandas as pd
 from pathlib import Path
 import numpy as np
-from data_utils import DEPARTEMENT_MAP, clean_nom 
+from data_utils import DEPARTEMENT_MAP, clean_nom, normalize_departement_label
 from data_utils import (
     extract_criterion_and_departement,
     is_value_file,
     predict_missing_years
 )
 
+
 BORD_MAP = {
     "MACRON EMMANUEL":           "centre",
-    "LE PEN MARINE":             "extreme_droite",
-    "LE PEN JEAN MARIE":         "extreme_droite",
-    "MELENCHON JEAN LUC":        "gauche",
-    "HOLLANDE FRANCOIS":         "gauche",
-    "SARKOZY NICOLAS":           "droite",
-    "ROYAL SEGOLENE":            "gauche",
-    "CHIRAC JACQUES":            "droite",
     "BAYROU FRANCOIS":           "centre",
-    "JOSPIN LIONEL":             "gauche",
-    "FILLON FRANCOIS":           "droite",
-    "HAMON BENOIT":              "gauche",
-    "BESANCENOT OLIVIER":        "gauche",
-    "LAGUILLER ARLETTE":         "gauche",
-    "CHEVENEMENT JEAN-PIERRE":   "gauche",
-    "GLUCKSTEIN DANIEL":         "gauche",
-    "MEGRET BRUNO":              "extreme_droite",
-    "DE VILLIERS PHILIPPE":      "droite",
-    "BUFFET MARIE-GEORGE":       "gauche",
-    "POUTOU PHILIPPE":           "gauche",
-    "ARTHAUD NATHALIE":          "gauche",
-    "ASSELINEAU FRANCOIS":       "extreme_droite",
-    "DUPONT-AIGNAN NICOLAS":     "droite",
     "LASSALLE JEAN":             "centre",
+    "JOLY EVA":                  "centre",
+    "LEPAGE CORINNE":            "centre",
+    "CHIRAC JACQUES":            "droite",
+    "SARKOZY NICOLAS":           "droite",
+    "FILLON FRANCOIS":           "droite",
+    "DE VILLIERS PHILIPPE":      "droite",
+    "DUPONT-AIGNAN NICOLAS":     "droite",
+    "SAINT-JOSSE JEAN":          "droite",
+    "MADELIN ALAIN":             "droite",
+    "NIHOUS FREDERIC":           "droite",
+    "BOUTIN CHRISTINE":          "droite",
+    "JOSPIN LIONEL":             "gauche",
+    "HOLLANDE FRANCOIS":         "gauche",
+    "ROYAL SEGOLENE":            "gauche",
+    "HAMON BENOIT":              "gauche",
+    "MELENCHON JEAN LUC":        "gauche",
+    "BUFFET MARIE-GEORGE":       "gauche",
+    "CHEVENEMENT JEAN-PIERRE":   "gauche",
+    "TAUBIRA CHRISTIANE":        "gauche",
+    "HUE ROBERT":                "gauche",
+    "BESANCENOT OLIVIER":        "extreme_gauche",
+    "LAGUILLER ARLETTE":         "extreme_gauche",
+    "POUTOU PHILIPPE":           "extreme_gauche",
+    "ARTHAUD NATHALIE":          "extreme_gauche",
+    "GLUCKSTEIN DANIEL":         "extreme_gauche",
+    "SCHIVARDI GERARD":          "extreme_gauche",
+    "LE PEN JEAN MARIE":         "extreme_droite",
+    "LE PEN MARINE":             "extreme_droite",
+    "MEGRET BRUNO":              "extreme_droite",
+    "ASSELINEAU FRANCOIS":       "extreme_droite",
+    "BOVE JOSE":                 "autre",
+    "VOYNET DOMINIQUE":          "autre",
+    "MAMERE NOEL":               "autre",
+    "CHEMINADE JACQUES":         "autre"
 }
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -623,144 +637,219 @@ def process_pauvrete():
     final.to_csv(CLEAN_DIR / "pauvrete_clean.csv", index=False)
     print(f"✅ pauvrete_clean.csv généré avec {len(final)} lignes et {len(final.columns)} colonnes")
 
-
 def extract_data_from_voix(df: pd.DataFrame, annee: int, tour: int,
                            dept_col: str, exprim_col: str) -> pd.DataFrame:
-    """
-    Extrait code_departement, nom_candidat, nuance, voix, exprim, annee, tour
-    puis calcule score = voix / exprim * 100.
-    """
     rows = []
+
     try:
-        base = df.columns.get_loc("Sexe")
-        nb_cand = (len(df.columns) - base) // 6
-        for i in range(nb_cand):
-            off = base + i*6
-            nom_col    = df.columns[off+1]
-            prenom_col = df.columns[off+2]
-            voix_col   = df.columns[off+3]
-            nuance_col = df.columns[off+4]
-            exprim_col = exprim_col
-
+        if tour == 2 and annee in {2017, 2022}:
+            # Cas particulier du second tour : 2 candidats séparés
             for _, row in df.iterrows():
-                code = str(row[dept_col]).replace(".0","").zfill(2)
-                nom    = clean_nom(row[nom_col])
-                prenom = clean_nom(row[prenom_col])
-                voix   = float(str(row[voix_col]).replace(",",".").replace(" ",""))
-                expr   = float(str(row[exprim_col]).replace(",",".").replace(" ",""))
-                nuance = str(row[nuance_col]).strip().upper()
+                try:
+                    code = str(row[dept_col]).replace(".0", "").strip().zfill(2)
+                    if code == "ZD":
+                        code = "974"
 
-                rows.append({
-                    "code_departement": code,
-                    "nom_candidat":     f"{nom} {prenom}".strip(),
-                    "nuance":           nuance,
-                    "voix":             voix,
-                    "exprim":           expr,
-                    "annee":            annee,
-                    "tour":             tour
-                })
-    except Exception as e:
-        # si le format n'est pas exactement celui attendu, on ignore
+                    exprim = float(str(row[exprim_col]).replace(",", ".").replace(" ", ""))
+                    if exprim == 0:
+                        continue
+
+                    # Bloc candidat 1
+                    nom1 = clean_nom(row["Nom"])
+                    prenom1 = clean_nom(row["Prénom"])
+                    full1 = f"{nom1} {prenom1}".strip()
+                    voix1 = float(str(row["Voix"]).replace(",", ".").replace(" ", ""))
+                    bord1 = BORD_MAP.get(full1)
+
+                    if bord1:
+                        rows.append({
+                            "code_departement": code,
+                            "bord":             bord1,
+                            "voix":             voix1,
+                            "exprim":           exprim,
+                            "annee":            annee,
+                            "tour":             tour
+                        })
+
+                    # Bloc candidat 2 (second bloc plus loin)
+                    nom2 = clean_nom(row.get("Unnamed: 28", ""))
+                    prenom2 = clean_nom(row.get("Unnamed: 29", ""))
+                    full2 = f"{nom2} {prenom2}".strip()
+                    voix2 = float(str(row.get("Unnamed: 30", "0")).replace(",", ".").replace(" ", ""))
+                    bord2 = BORD_MAP.get(full2)
+
+                    if bord2:
+                        rows.append({
+                            "code_departement": code,
+                            "bord":             bord2,
+                            "voix":             voix2,
+                            "exprim":           exprim,
+                            "annee":            annee,
+                            "tour":             tour
+                        })
+
+                except Exception:
+                    continue
+
+        else:
+            # Tours classiques (1er tour, ou anciens formats)
+            base = df.columns.get_loc("Sexe")
+            nb_cand = (len(df.columns) - base) // 6
+
+            for i in range(nb_cand):
+                off = base + i * 6
+                nom_col = df.columns[off + 1]
+                prenom_col = df.columns[off + 2]
+                voix_col = df.columns[off + 3]
+
+                for _, row in df.iterrows():
+                    try:
+                        code = str(row[dept_col]).replace(".0", "").strip().zfill(2)
+                        if code == "ZD":
+                            code = "974"
+
+                        nom = clean_nom(row[nom_col])
+                        prenom = clean_nom(row[prenom_col])
+                        full = f"{nom} {prenom}".strip()
+
+                        voix = float(str(row[voix_col]).replace(",", ".").replace(" ", ""))
+                        expr = float(str(row[exprim_col]).replace(",", ".").replace(" ", ""))
+
+                        bord = BORD_MAP.get(full)
+                        if not bord:
+                            continue
+
+                        rows.append({
+                            "code_departement": code,
+                            "bord":             bord,
+                            "voix":             voix,
+                            "exprim":           expr,
+                            "annee":            annee,
+                            "tour":             tour
+                        })
+                    except Exception:
+                        continue
+
+    except Exception:
         pass
 
     if not rows:
         return pd.DataFrame(columns=[
-            "code_departement","nom_candidat","nuance",
-            "voix","exprim","score","annee","tour"
+            "code_departement", "bord", "score", "annee", "tour"
         ])
 
     tmp = pd.DataFrame(rows)
     agg = tmp.groupby(
-        ["code_departement","nom_candidat","nuance","annee","tour"],
+        ["code_departement", "bord", "annee", "tour"],
         as_index=False
     ).sum()
     agg["score"] = (agg["voix"] / agg["exprim"] * 100).round(2)
+
     return agg[[
-        "code_departement","nom_candidat","nuance",
-        "score","annee","tour"
+        "code_departement", "bord", "score", "annee", "tour"
     ]]
 
 def parse_election_file(path: Path, annee: int, tour: int) -> pd.DataFrame:
-    """
-    Lit le CSV selon l'année, skiprows si besoin, et appelle extract_data_from_voix().
-    """
     try:
         if annee in {2002, 2007, 2012}:
             df = pd.read_csv(path, encoding="utf-8", sep=",", dtype=str)
-            return extract_data_from_voix(
-                df, annee, tour,
-                dept_col="Code du département",
-                exprim_col="Exprimés"
-            )
-        if annee == 2017:
+            dept_col = df.columns[1]
+            return extract_data_from_voix(df, annee, tour, dept_col, "Exprimés")
+
+        elif annee == 2017:
             df = pd.read_csv(path, encoding="utf-8", skiprows=3, dtype=str)
-            return extract_data_from_voix(
-                df, annee, tour,
-                dept_col=df.columns[0],
-                exprim_col="Exprimés"
-            )
-        if annee == 2022:
+            dept_col = "Code du département"
+            return extract_data_from_voix(df, annee, tour, dept_col, "Exprimés")
+
+        elif annee == 2022:
             df = pd.read_csv(path, encoding="utf-8", dtype=str)
-            return extract_data_from_voix(
-                df, annee, tour,
-                dept_col="Code du département",
-                exprim_col="Exprimés"
-            )
+            dept_col = "Code du département"
+            return extract_data_from_voix(df, annee, tour, dept_col, "Exprimés")
+
     except Exception as e:
         print(f"❌ Erreur fichier {path.name}: {e}")
-    # retour vide si problème
+
     return pd.DataFrame(columns=[
-        "code_departement","nom_candidat","nuance",
-        "score","annee","tour"
+        "code_departement", "bord", "score", "annee", "tour"
     ])
 
 def process_elections():
-    print("📦 Sélection des vainqueurs d'élection…")
     RAW_ELEC = BASE_DIR / "data" / "raw" / "elections"
-    # on ne conserve que ces codes-départements
-    depts_cibles = set(DEPARTEMENT_MAP.values())
+    CLEAN_DIR.mkdir(parents=True, exist_ok=True)
 
-    winners = []
+    depts_cibles = set(DEPARTEMENT_MAP.values())
+    normalized_dept_map = {
+        normalize_departement_label(name): code
+        for name, code in DEPARTEMENT_MAP.items()
+    }
+
+    rows = []
     for file in sorted(RAW_ELEC.glob("*.csv")):
-        stem = file.stem  # ex: "elections_2017_T2"
-        parts = stem.split("_")
-        # déterminer année et tour
+        parts = file.stem.split("_")
         if parts[-1] in ("T1", "T2"):
             annee = int(parts[-2])
-            tour  = 2 if parts[-1] == "T2" else 1
+            tour = 2 if parts[-1] == "T2" else 1
         else:
             annee = int(parts[-1])
-            tour  = 1
+            tour = 1
+
+        if annee in {2017, 2022} and tour != 2:
+            continue
 
         df = parse_election_file(file, annee, tour)
         if df.empty:
             continue
 
-        # si on a les deux tours, privilégier le 2ᵉ
-        if 2 in df["tour"].unique():
-            df = df[df["tour"] == 2]
+        if "Libellé du département" in df.columns:
+            df["code_departement"] = df.apply(
+                lambda row: DEPARTEMENT_MAP.get(
+                    normalize_departement_label(row["Libellé du département"]),
+                    row["code_departement"]
+                ),
+                axis=1
+            )
 
-        # pour chaque département ciblé, prendre le candidat qui a max score
-        for dept, sub in df.groupby("code_departement", as_index=False):
-            if dept not in depts_cibles:
-                continue
-            win = sub.loc[sub["score"].idxmax()]
-            cand = win["nom_candidat"].strip().upper()
-            bord = BORD_MAP.get(cand, "Autre")
-            winners.append({
-                "code_departement": dept,
-                "bord_gagnant":     bord,
-                "score":            win["score"],
-                "annee":            annee
-            })
+        rows.append(df)
 
-    df_win = pd.DataFrame(winners)
-    # on s’attend à len(depts_cibles) × 5 (2002,2007,2012,2017,2022)
-    df_win = df_win[["code_departement", "bord_gagnant", "score", "annee"]]
-    df_win = df_win.sort_values(["code_departement", "annee"])
-    df_win.to_csv(CLEAN_DIR / "elections_clean.csv", index=False)
-    print(f"✅ elections_clean.csv généré avec {len(df_win)} lignes")
+    if not rows:
+        print("⚠️ Aucun fichier valide")
+        return
 
+    all_data = pd.concat(rows)
+    pivot = all_data.pivot_table(
+        index=["code_departement", "annee"],
+        columns="bord",
+        values="score",
+        aggfunc="sum"
+    ).reset_index()
+
+    pivot.columns.name = None
+    pivot = pivot.fillna(0)
+
+    pivot = pivot.rename(columns={
+        "gauche": "resultat_gauche",
+        "droite": "resultat_droite",
+        "centre": "resultat_centre",
+        "extreme_droite": "resultat_extreme_droite",
+        "extreme_gauche": "resultat_extreme_gauche",
+        "autre": "resultat_autre"
+    })
+
+    for col in [
+        "resultat_gauche", "resultat_droite", "resultat_centre",
+        "resultat_extreme_droite", "resultat_extreme_gauche", "resultat_autre"]:
+        if col not in pivot.columns:
+            pivot[col] = 0.0
+
+    pivot = pivot[[
+        "code_departement", "annee",
+        "resultat_gauche", "resultat_droite", "resultat_centre",
+        "resultat_extreme_droite", "resultat_extreme_gauche", "resultat_autre"
+    ]]
+
+    pivot = pivot[pivot["code_departement"].isin(DEPARTEMENT_MAP.values())]
+    pivot.to_csv(CLEAN_DIR / "elections_clean.csv", index=False)
+    print(f"✅ Fichier généré : {CLEAN_DIR / 'elections_clean.csv'}")
 
 def main():
     process_population()

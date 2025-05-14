@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
+import unicodedata
+import re
 
 # Liste des départements gérés
 DEPARTEMENT_MAP = {
@@ -107,4 +109,27 @@ def predict_missing_years(
     return pd.DataFrame({year_col: target_years, value_col: out})
 
 def clean_nom(nom: str) -> str:
-    return str(nom).replace('"', '').strip().upper()
+    if not isinstance(nom, str):
+        return ""
+    
+    nom = nom.replace('"', '').replace("'", '').replace("’", '')
+    nom = unicodedata.normalize("NFD", nom)
+    nom = nom.encode("ascii", "ignore").decode("utf-8")
+    nom = nom.replace("-", " ")
+    nom = re.sub(r"[^\w\s]", "", nom)
+
+    return nom.strip().upper()
+
+
+def normalize_departement_label(label: str) -> str:
+    """
+    Supprime les accents, met en minuscules, normalise les espaces et tirets.
+    Exemple : 'La Réunion' → 'la reunion', 'Côte-d'Or' → 'cote dor'
+    """
+    label = label.strip().lower()
+    label = ''.join(
+        c for c in unicodedata.normalize('NFD', label)
+        if unicodedata.category(c) != 'Mn'
+    )
+    label = label.replace("'", "").replace("-", " ")
+    return label
