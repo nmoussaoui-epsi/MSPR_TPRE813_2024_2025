@@ -32,6 +32,12 @@ Créez un fichier `.env` à la racine du projet et ajoutez-y les informations su
 ```
 INSEE_CLIENT_ID=<VOTRE_CLIENT_ID>
 INSEE_CLIENT_SECRET=<VOTRE_CLIENT_SECRET>
+
+DB_NAME=mspr_tpre813_db
+DB_USER=postgres
+DB_PASSWORD=<VOTRE_MDP>
+DB_HOST=localhost
+DB_PORT=5432
 ```
 
 Pour obtenir ces identifiants, créez un compte sur le site de l'INSEE ([https://api.insee.fr/](https://api.insee.fr/catalogue/)) et générez vos clés d'API.

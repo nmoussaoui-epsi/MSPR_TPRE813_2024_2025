@@ -12,6 +12,7 @@ from src.cleaning.rsa_cleaner import RsaCleaner
 from src.merge.merge_cleaned_data import merge_all_cleaned_data
 from src.fetch.fetch_data import DataFetcher
 from src.utils.constantes import BASE_DIR
+from src.db.inject_data import run as inject_data_run
 
 def should_fetch_data() -> bool:
     raw_base = BASE_DIR / "data" / "raw"
@@ -78,3 +79,4 @@ if __name__ == "__main__":
     fetch_if_needed()
     main()
     merge_all_cleaned_data()
+    inject_data_run()
