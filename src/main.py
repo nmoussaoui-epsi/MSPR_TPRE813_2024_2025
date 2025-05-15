@@ -39,7 +39,7 @@ def main():
             input_dir=Path("."), output_file=Path("data/clean/criminalite_clean.csv")
         ),
         CmuCleaner(
-            input_dir=Path("."), output_file=Path("data/clean/cmu_clean.csv")  # ignoré
+            input_dir=Path("."), output_file=Path("data/clean/cmu_clean.csv")
         ),
         DiplomeCleaner(
             input_dir=Path("data/raw/diplome"),
